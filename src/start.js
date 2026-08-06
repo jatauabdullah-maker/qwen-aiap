@@ -10,7 +10,7 @@ const cpuCores = os.cpus().length
 
 // 获取环境变量配置
 const PM2_INSTANCES = process.env.PM2_INSTANCES || '1'
-const SERVICE_PORT = process.env.SERVICE_PORT || 3000
+const SERVICE_PORT = process.env.PORT || process.env.SERVICE_PORT || 3000
 const NODE_ENV = process.env.NODE_ENV || 'production'
 
 // 解析进程数
