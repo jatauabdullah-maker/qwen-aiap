@@ -16,9 +16,29 @@ const verifyRouter = require('./routes/verify.js')
 const accountsRouter = require('./routes/accounts.js')
 const settingsRouter = require('./routes/settings.js')
 
+// Render / File data initialization check
 if (config.dataSaveMode === 'file') {
-  if (!fs.existsSync(path.join(__dirname, '../data/data.json'))) {
-    fs.writeFileSync(path.join(__dirname, '../data/data.json'), JSON.stringify({"accounts": [] }, null, 2))
+  const dataDir = path.join(__dirname, '../data')
+  const dataFilePath = path.join(dataDir, 'data.json')
+  
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true })
+  }
+
+  // If data.json doesn't exist or if RENDER environment variable/token is present, 
+  // seed/initialize it dynamically to prevent missing authentication on Render.
+  if (!fs.existsSync(dataFilePath) || process.env.RENDER_TOKEN) {
+    const initialAccounts = [
+      {
+        "id": "acc_01",
+        "name": "user",
+        "token": process.env.RENDER_TOKEN || "",
+        "status": "active",
+        "enabled": true
+      }
+    ];
+    fs.writeFileSync(dataFilePath, JSON.stringify({ "accounts": initialAccounts }, null, 2))
+    logger.info('Initialized data.json from environment variables / defaults', 'SERVER')
   }
 }
 
@@ -55,7 +75,6 @@ app.use((err, req, res, next) => {
   res.status(500).send('服务器内部错误')
 })
 
-
 // 服务器启动信息
 const serverInfo = {
   address: config.listenAddress || 'localhost',
@@ -69,7 +88,6 @@ const serverInfo = {
 }
 
 // 应用持久化的运行时设置（web UI > env > hardcoded default）
-// Web UI 可覆盖 chatRetryCount / chatRetryBackoffMs; env в config/index.js — baseline
 const applyPersistedSettings = async () => {
   try {
     const persisted = await new DataPersistence().loadSettings()
@@ -91,15 +109,18 @@ const applyPersistedSettings = async () => {
 }
 
 const startServer = () => {
+  // Use Render's assigned process.env.PORT if available, else use config.listenPort
+  const portToUse = process.env.PORT || config.listenPort
+
   if (config.listenAddress) {
-    app.listen(config.listenPort, config.listenAddress, () => {
-      logger.server('服务器启动成功', 'SERVER', serverInfo)
+    app.listen(portToUse, config.listenAddress, () => {
+      logger.server('服务器启动成功', 'SERVER', { ...serverInfo, port: portToUse })
       logger.info('开源地址: https://github.com/Rfym21/Qwen2API', 'INFO')
       logger.info('电报群聊: https://t.me/nodejs_project', 'INFO')
     })
   } else {
-    app.listen(config.listenPort, () => {
-      logger.server('服务器启动成功', 'SERVER', serverInfo)
+    app.listen(portToUse, () => {
+      logger.server('服务器启动成功', 'SERVER', { ...serverInfo, port: portToUse })
       logger.info('开源地址: https://github.com/Rfym21/Qwen2API', 'INFO')
       logger.info('电报群聊: https://t.me/nodejs_project', 'INFO')
     })
